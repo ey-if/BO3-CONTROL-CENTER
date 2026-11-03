@@ -1,0 +1,66 @@
+إنشاء سير عمل GitHub Actions من الآيفون أو المتصفح
+
+المسار الذي يجب إدخاله في GitHub عند اختيار Add file > Create new file:
+.github/workflows/build-windows.yml
+
+انسخ النص التالي كاملًا إلى محتوى الملف ثم اضغط Commit changes:
+
+--- BEGIN YAML ---
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Python syntax
+        run: python -m py_compile BO3_Control_Center.py
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Install PyInstaller
+        run: python -m pip install --upgrade pyinstaller
+
+      - name: Build standalone Windows application
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --name BO3-Control-Center BO3_Control_Center.py
+
+      - name: Verify EXE output
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist/BO3-Control-Center.exe")) {
+            throw "The EXE was not created."
+          }
+          Get-Item "dist/BO3-Control-Center.exe" | Format-List Name,Length,FullName
+
+      - name: Upload Windows EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: BO3-Control-Center-Windows10
+          path: dist/BO3-Control-Center.exe
+          if-no-files-found: error
+          retention-days: 14
+--- END YAML ---
+
+مهم:
+- لا ترفع هذا الملف النصي إلى جذر المستودع باعتباره Workflow؛ هو مرجع للنسخ فقط.
+- يجب إنشاء الملف الفعلي بالمسار .github/workflows/build-windows.yml.
+- ارفع tests/test_network_helpers.py داخل مجلد tests.
+- حدّث BO3_Control_Center.py وREADME_AR.txt وbuild_windows.bat من الحزمة نفسها.
+- بعد Commit، افتح Actions وتأكد من ظهور Build Windows EXE.
